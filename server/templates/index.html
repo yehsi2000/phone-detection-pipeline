@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phone Detection AI — Central Server & MLOps Studio</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <!-- Top Header Navigation -->
+    <header class="navbar">
+        <div class="nav-left">
+            <div class="logo-group">
+                <div class="logo-icon">📱</div>
+                <div class="logo-text">
+                    <h1>PhoneGuard AI</h1>
+                    <span class="logo-sub">Central Server & Active Learning Studio</span>
+                </div>
+            </div>
+            <div class="status-badge" id="server-status">
+                <span class="pulse-dot"></span>
+                <span>SERVER ONLINE</span>
+            </div>
+        </div>
+
+        <nav class="nav-tabs">
+            <button class="nav-btn active" data-tab="monitor-tab">
+                <span class="icon">📡</span> 실시간 모니터링
+            </button>
+            <button class="nav-btn" data-tab="logs-tab">
+                <span class="icon">📜</span> 감지 로그
+            </button>
+            <button class="nav-btn" data-tab="triage-tab">
+                <span class="icon">🔍</span> 검수 & 라벨링 
+                <span class="badge" id="pending-badge">0</span>
+            </button>
+            <button class="nav-btn" data-tab="model-tab">
+                <span class="icon">🧪</span> 모델 랩 & 벤치마크
+            </button>
+        </nav>
+
+        <div class="nav-right">
+            <div class="active-model-pill" id="active-model-pill">
+                <span class="pill-label">Active:</span>
+                <span class="pill-value" id="active-model-name">Loading...</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="main-container">
+
+        <!-- TAB 1: Live Monitoring -->
+        <section id="monitor-tab" class="tab-content active">
+            <!-- Stat Cards Row -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon alert-icon">🚨</div>
+                    <div class="stat-info">
+                        <span class="stat-label">총 감지 이벤트</span>
+                        <h2 class="stat-val" id="stat-total-events">0</h2>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon unreviewed-icon">⏳</div>
+                    <div class="stat-info">
+                        <span class="stat-label">검수 대기 (오탐 분류 필요)</span>
+                        <h2 class="stat-val text-warning" id="stat-unreviewed">0</h2>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon pos-icon">✅</div>
+                    <div class="stat-info">
+                        <span class="stat-label">정탐 (True Positive)</span>
+                        <h2 class="stat-val text-success" id="stat-true-pos">0</h2>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon neg-icon">🛡️</div>
+                    <div class="stat-info">
+                        <span class="stat-label">오탐 (Hard Negative)</span>
+                        <h2 class="stat-val text-indigo" id="stat-false-pos">0</h2>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon device-icon">💻</div>
+                    <div class="stat-info">
+                        <span class="stat-label">연결된 클라이언트</span>
+                        <h2 class="stat-val text-primary" id="stat-online-devices">0</h2>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Two Columns: Connected Devices & Live Event Feed -->
+            <div class="dashboard-split">
+                <!-- Connected Clients Box -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>💻 접속된 클라이언트 에이전트</h3>
+                        <button class="btn-sm" onclick="refreshDevices()">새로고침</button>
+                    </div>
+                    <div class="table-wrapper">
+                        <table class="data-table" id="devices-table">
+                            <thead>
+                                <tr>
+                                    <th>Client ID</th>
+                                    <th>호스트명</th>
+                                    <th>사용자</th>
+                                    <th>운영체제</th>
+                                    <th>마지막 통신</th>
+                                    <th>상태</th>
+                                </tr>
+                            </thead>
+                            <tbody id="devices-tbody">
+                                <tr><td colspan="6" class="text-center">기기 목록 로딩 중...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Recent Live Alerts Feed -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>⚡ 최근 감지 이벤트 피드</h3>
+                        <button class="btn-sm" onclick="refreshLogs()">새로고침</button>
+                    </div>
+                    <div class="live-feed-list" id="live-feed-container">
+                        <!-- Feed Items will be dynamically loaded -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 2: Event Logs -->
+        <section id="logs-tab" class="tab-content">
+            <div class="panel">
+                <div class="panel-header filters-header">
+                    <div class="filter-group">
+                        <label>검색 & 필터:</label>
+                        <select id="filter-event" class="select-input" onchange="loadLogsTable()">
+                            <option value="all">모든 이벤트</option>
+                            <option value="Mobile phone detected">Mobile phone detected</option>
+                            <option value="Camera connection lost">Camera connection lost</option>
+                            <option value="Monochromatic image">Monochromatic image</option>
+                            <option value="Frozen image">Frozen image</option>
+                            <option value="Attempt to close application">Attempt to close application</option>
+                        </select>
+                        <select id="filter-review" class="select-input" onchange="loadLogsTable()">
+                            <option value="all">모든 검수 상태</option>
+                            <option value="UNREVIEWED">검수 대기 (Unreviewed)</option>
+                            <option value="TRUE_POSITIVE">정탐 (True Positive)</option>
+                            <option value="FALSE_POSITIVE">오탐 (Hard Negative)</option>
+                            <option value="IGNORED">무시 (Ignored)</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary btn-sm" onclick="loadLogsTable()">조회 새로고침</button>
+                </div>
+
+                <div class="table-wrapper">
+                    <table class="data-table" id="logs-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>일시</th>
+                                <th>기기 / 사용자</th>
+                                <th>이벤트</th>
+                                <th>신뢰도</th>
+                                <th>카메라 캡처</th>
+                                <th>스크린샷</th>
+                                <th>검수 상태</th>
+                                <th>작업</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logs-tbody">
+                            <tr><td colspan="9" class="text-center">로그 로딩 중...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: Triage & Canvas Studio -->
+        <section id="triage-tab" class="tab-content">
+            <div class="triage-layout">
+                <!-- Left: Pending Queue -->
+                <div class="triage-queue-panel">
+                    <div class="panel-header">
+                        <h4>검수 대기열 (<span id="triage-count">0</span>)</h4>
+                        <button class="btn-sm" onclick="loadTriageQueue()">새로고침</button>
+                    </div>
+                    <div class="queue-list" id="triage-queue-list">
+                        <!-- Queue items -->
+                    </div>
+                </div>
+
+                <!-- Center: Canvas Image Visualizer / Bounding Box Editor -->
+                <div class="triage-workspace-panel">
+                    <div class="workspace-header">
+                        <div class="meta-tag" id="current-item-info">선택된 항목 없음</div>
+                        <div class="canvas-tools">
+                            <span class="tool-hint">💡 마우스 드래그로 바운딩 박스를 직접 그릴 수 있습니다.</span>
+                            <button class="btn btn-sm btn-outline" onclick="resetCanvasBox()">박스 초기화</button>
+                        </div>
+                    </div>
+
+                    <div class="canvas-container" id="canvas-container">
+                        <canvas id="triage-canvas"></canvas>
+                        <div class="canvas-placeholder" id="canvas-placeholder">
+                            <span>검수할 이미지를 왼쪽 대기열에서 선택하세요</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Action & Retrain Stats -->
+                <div class="triage-action-panel">
+                    <div class="panel-header">
+                        <h4>검수 및 분류 결정</h4>
+                    </div>
+                    <div class="action-body">
+                        <p class="action-desc">
+                            휴대폰이 아닌데 감지된 <strong>오탐 이미지</strong>는 모델이 헷갈려하는 귀중한 <strong>Hard Negative</strong> 샘플로 데이터셋에 자동 적재됩니다.
+                        </p>
+
+                        <div class="triage-btn-group">
+                            <button class="btn btn-danger btn-lg w-full" onclick="classifyCurrent('FALSE_POSITIVE')">
+                                <span class="btn-icon">❌</span>
+                                <div class="btn-text">
+                                    <strong>오탐 (Hard Negative) 지정</strong>
+                                    <small>휴대폰 아님 (0개 객체로 학습)</small>
+                                </div>
+                            </button>
+
+                            <button class="btn btn-success btn-lg w-full" onclick="classifyCurrent('TRUE_POSITIVE')">
+                                <span class="btn-icon">✅</span>
+                                <div class="btn-text">
+                                    <strong>정탐 (Phone 박스 확정)</strong>
+                                    <small>휴대폰 맞음 (박스 좌표 저장)</small>
+                                </div>
+                            </button>
+
+                            <button class="btn btn-secondary w-full" onclick="classifyCurrent('IGNORED')">
+                                ⏭️ 보류 / 제외
+                            </button>
+                        </div>
+
+                        <div class="retrain-ready-card">
+                            <h5>📊 누적된 학습용 데이터셋</h5>
+                            <div class="ready-stat-row">
+                                <span>정탐 (Phone):</span>
+                                <strong id="dataset-pos-count">0</strong>
+                            </div>
+                            <div class="ready-stat-row">
+                                <span>오탐 (Hard Negative):</span>
+                                <strong id="dataset-neg-count">0</strong>
+                            </div>
+                            <div class="ready-stat-row total-row">
+                                <span>총 검수 데이터:</span>
+                                <strong id="dataset-total-count">0</strong>
+                            </div>
+                            <button class="btn btn-primary w-full mt-3" onclick="switchToModelLab()">
+                                🚀 모델 랩에서 파인튜닝하기
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 4: Model Lab & Benchmark -->
+        <section id="model-tab" class="tab-content">
+            <div class="model-lab-layout">
+                <!-- Training Config & Control Card -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>🧪 지속적 파인튜닝 (Active Learning Fine-Tuning)</h3>
+                        <span class="badge badge-indigo">Multi-Model Backbone</span>
+                    </div>
+
+                    <div class="train-config-grid">
+                        <div class="form-group">
+                            <label for="backbone-select">백본 아키텍처 (Backbone):</label>
+                            <select id="backbone-select" class="select-input">
+                                <option value="yolov13n" selected>YOLOv13n (Hypergraph HyperACE & FullPAD — 최신 아키텍처)</option>
+                                <option value="yolo12n">YOLOv12n (Area Attention — 논문 Best exp27 베이스)</option>
+                                <option value="yolo11n">YOLO11n (Ultralytics v11 경량 모델)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="epochs-input">학습 에포크 (Epochs):</label>
+                            <input type="number" id="epochs-input" class="number-input" value="30" min="5" max="300">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="batch-input">배치 사이즈 (Batch Size):</label>
+                            <input type="number" id="batch-input" class="number-input" value="16" min="4" max="128">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="device-select">연산 장치 (Device):</label>
+                            <select id="device-select" class="select-input">
+                                <option value="cpu" selected>CPU</option>
+                                <option value="cuda">CUDA (NVIDIA GPU 가속)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="train-action-row">
+                        <button class="btn btn-primary btn-lg" id="btn-start-train" onclick="startTraining()">
+                            🚀 선택된 백본으로 파인튜닝 시작
+                        </button>
+                        <span id="train-status-msg" class="train-status-text"></span>
+                    </div>
+
+                    <!-- Live Progress & Log Terminal -->
+                    <div class="train-monitor-box" id="train-monitor-box" style="display:none;">
+                        <div class="progress-bar-wrapper">
+                            <div class="progress-bar-fill" id="train-progress-fill" style="width: 0%;"></div>
+                        </div>
+                        <div class="progress-labels">
+                            <span id="train-epoch-label">Epoch: 0 / 0</span>
+                            <span id="train-percent-label">0%</span>
+                        </div>
+
+                        <div class="terminal-box" id="terminal-output">
+                            <div class="terminal-line">[SYSTEM] Ready for training...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Model Benchmark & Comparison Table -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>🏆 모델 벤치마크 및 배포 관리 (Model Benchmark & 1-Click Deployment)</h3>
+                        <button class="btn-sm" onclick="loadModelVersions()">새로고침</button>
+                    </div>
+
+                    <div class="table-wrapper">
+                        <table class="data-table" id="models-table">
+                            <thead>
+                                <tr>
+                                    <th>버전 태그</th>
+                                    <th>아키텍처 백본</th>
+                                    <th>mAP@50</th>
+                                    <th>Precision</th>
+                                    <th>Recall</th>
+                                    <th>F1-Score</th>
+                                    <th>CPU 추론속도 (ms)</th>
+                                    <th>ONNX 크기</th>
+                                    <th>배포 상태</th>
+                                    <th>원클릭 배포</th>
+                                </tr>
+                            </thead>
+                            <tbody id="models-tbody">
+                                <tr><td colspan="10" class="text-center">모델 목록 로딩 중...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Modal for Detailed Log Inspection -->
+    <div class="modal" id="log-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 id="modal-title">감지 이벤트 상세</h4>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="modal-body">
+                <!-- Dynamic Content -->
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/dashboard.js"></script>
+</body>
+</html>

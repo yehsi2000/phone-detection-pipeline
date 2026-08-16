@@ -1,0 +1,6 @@
+{
+    "camera_id": 0,
+    "fps": 10,
+    "log_retention": "Never delete",
+    "confidence_threshold": 0.5
+}

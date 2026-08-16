@@ -1,0 +1,30 @@
+{
+    "camera_id": 0,
+    "fps": 2,
+    "log_retention": "1 month",
+    "confidence_threshold": 0.6,
+    "phone_limit": 1,
+    "server_url": "http://localhost:8000",
+    "sync_interval_seconds": 5,
+    "model_check_interval_seconds": 60,
+    "lock_events": {
+        "phone_detected": true,
+        "camera_lost": true,
+        "uniform_image": true,
+        "attempt_to_close": false,
+        "static_img": true
+    },
+    "log_events": {
+        "phone_detected": true,
+        "camera_lost": true,
+        "uniform_image": true,
+        "attempt_to_close": true,
+        "static_img": true
+    },
+    "other_events": {
+        "make_screen_enabled": true
+    },
+    "autostart": {
+        "on_system_start": false
+    }
+}
